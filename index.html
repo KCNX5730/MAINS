@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="KCNX — Real-time inference infrastructure. A comprehensive overview of the platform, architecture, and ecosystem.">
+  <meta property="og:title" content="KCNX — Real-time Inference Infrastructure">
+  <meta property="og:description" content="A comprehensive overview of the KCNX platform, architecture, and ecosystem.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>KCNX</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       DESIGN TOKENS
+       ============================================================ */
+    :root {
+      --bg: #0A0A0A;
+      --bg-elev: #111111;
+      --bg-card: #161616;
+      --surface: #1C1C1C;
+      --border: rgba(255,255,255,0.08);
+      --text: #F5F5F5;
+      --text-muted: #9A9A9A;
+      --text-dim: #666;
+      --accent: #C8FF00;
+      --accent-glow: rgba(200,255,0,0.18);
+      --blue: #2D7DFF;
+      --blue-glow: rgba(45,125,255,0.22);
+      --black: #000000;
+      --radius: 12px;
+      --radius-lg: 20px;
+      --space-xs: 0.5rem;
+      --space-sm: 1rem;
+      --space-md: 2rem;
+      --space-lg: 4rem;
+      --space-xl: 6rem;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+      --font-body: 'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --nav-h: 72px;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    body.loading { overflow: hidden; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+    img { max-width: 100%; display: block; }
+    ul { list-style: none; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+    ::selection { background: var(--accent); color: #000; }
+
+    /* ============================================================
+       UTILITY
+       ============================================================ */
+    .container { width: min(1200px, 92vw); margin-inline: auto; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: var(--space-sm);
+    }
+    .section-label::before { content: ''; width: 24px; height: 1px; background: var(--accent); }
+    .section-title {
+      font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: var(--space-md);
+    }
+    .section-sub { max-width: 56ch; color: var(--text-muted); font-size: 1.05rem; }
+
+    /* ============================================================
+       PRELOADER
+       ============================================================ */
+    #preloader {
+      position: fixed; inset: 0; z-index: 9999; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: opacity 0.6s var(--ease-out), visibility 0.6s;
+    }
+    #preloader.done { opacity: 0; visibility: hidden; }
+    .preloader-logo {
+      font-family: var(--font-display); font-size: 2.4rem; font-weight: 700;
+      letter-spacing: 0.3em; color: var(--blue); margin-bottom: 2rem;
+    }
+    .preloader-logo span { color: var(--accent); }
+    .preloader-bar {
+      width: 180px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;
+    }
+    .preloader-bar__fill {
+      height: 100%; width: 0; background: var(--accent); border-radius: 2px;
+      transition: width 0.4s var(--ease-out);
+    }
+    .preloader-count {
+      margin-top: 1rem; font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-dim);
+    }
+
+    /* ============================================================
+       NAVIGATION
+       ============================================================ */
+    #nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: var(--nav-h); display: flex; align-items: center;
+      transition: background 0.35s var(--ease-out), border-color 0.35s, backdrop-filter 0.35s;
+      border-bottom: 1px solid transparent;
+    }
+    #nav.scrolled {
+      background: rgba(10,10,10,0.82);
+      backdrop-filter: blur(18px) saturate(1.4);
+      -webkit-backdrop-filter: blur(18px) saturate(1.4);
+      border-bottom-color: var(--border);
+    }
+    .nav-inner {
+      width: min(1320px, 94vw); margin-inline: auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 2rem;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: var(--font-display); font-weight: 700; font-size: 1.3rem;
+      letter-spacing: 0.12em; color: var(--blue);
+    }
+    .nav-brand svg { width: 28px; height: 28px; }
+    .nav-links { display: flex; align-items: center; gap: 0.25rem; }
+    .nav-links > li > a, .nav-links > li > button {
+      padding: 0.5rem 0.9rem; border-radius: 8px; font-size: 0.875rem;
+      font-weight: 500; color: var(--text-muted); transition: color 0.2s, background 0.2s;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .nav-links > li > a:hover, .nav-links > li > button:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .nav-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.65rem 1.4rem; border-radius: 100px; font-size: 0.875rem; font-weight: 600;
+      transition: transform 0.2s var(--ease-out), background 0.2s, box-shadow 0.2s;
+    }
+    .btn--primary { background: var(--accent); color: #000; }
+    .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+    .btn--ghost { border: 1px solid var(--border); color: var(--text); }
+    .btn--ghost:hover { background: rgba(255,255,255,0.05); }
+    .btn--blue { background: var(--blue); color: #fff; }
+    .btn--blue:hover { box-shadow: 0 8px 24px var(--blue-glow); }
+
+    /* Mega Menu */
+    .nav-item { position: relative; }
+    .mega-menu {
+      position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%) translateY(8px);
+      width: min(720px, 90vw); background: var(--bg-elev); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.5rem; display: grid;
+      grid-template-columns: 1.6fr 1fr; gap: 1.5rem;
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s var(--ease-out), visibility 0.25s;
+      box-shadow: 0 32px 64px rgba(0,0,0,0.6);
+    }
+    .nav-item:hover .mega-menu, .nav-item:focus-within .mega-menu {
+      opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0);
+    }
+    .mega-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .mega-card {
+      display: flex; gap: 0.75rem; padding: 0.85rem; border-radius: var(--radius);
+      border: 1px solid transparent; transition: background 0.2s, border-color 0.2s;
+    }
+    .mega-card:hover { background: var(--surface); border-color: var(--border); }
+    .mega-card__img {
+      width: 64px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0;
+      background: var(--surface);
+    }
+    .mega-card__title { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+    .mega-card__desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+    .mega-side { border-left: 1px solid var(--border); padding-left: 1.5rem; }
+    .mega-side h4 { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.75rem; }
+    .mega-side a { display: block; font-size: 0.82rem; color: var(--text-muted); padding: 0.35rem 0; transition: color 0.2s; }
+    .mega-side a:hover { color: var(--accent); }
+
+    /* Mobile Nav */
+    #mobile-toggle { display: none; padding: 0.5rem; }
+    #mobile-drawer {
+      position: fixed; inset: 0; z-index: 999; background: var(--bg);
+      transform: translateX(100%); transition: transform 0.4s var(--ease-in-out);
+      display: flex; flex-direction: column; padding: 6rem 2rem 2rem; overflow-y: auto;
+    }
+    #mobile-drawer.open { transform: translateX(0); }
+    #mobile-drawer a { font-size: 1.4rem; font-family: var(--font-display); font-weight: 600; padding: 0.8rem 0; border-bottom: 1px solid var(--border); }
+
+    /* ============================================================
+       HERO
+       ============================================================ */
+    #hero {
+      min-height: 100vh; position: relative; display: flex; align-items: center;
+      padding-top: var(--nav-h); overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      background-image: url('https://files.catbox.moe/auxmyo.jpg');
+      background-size: cover; background-position: center;
+      filter: brightness(0.35) saturate(0.8);
+    }
+    .hero-grain {
+      position: absolute; inset: 0; z-index: 1; opacity: 0.06; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .hero-canvas { position: absolute; inset: 0; z-index: 1; opacity: 0.5; }
+    .hero-content {
+      position: relative; z-index: 2; display: grid; grid-template-columns: 1.15fr 0.85fr;
+      gap: 4rem; align-items: center; padding: var(--space-xl) 0;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem;
+      border-radius: 100px; border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+      font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); margin-bottom: 1.5rem;
+    }
+    .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .hero-title {
+      font-family: var(--font-display); font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 700; line-height: 1.02; letter-spacing: -0.03em; margin-bottom: 1.5rem;
+    }
+    .hero-title .line { display: block; overflow: hidden; }
+    .hero-title .word { display: inline-block; transform: translateY(110%); transition: transform 0.8s var(--ease-out); }
+    .hero-title .word.in { transform: translateY(0); }
+    .hero-sub { max-width: 48ch; color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; }
+    .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .hero-stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border);
+      border-radius: var(--radius); overflow: hidden; margin-top: 3rem;
+    }
+    .hero-stat { background: var(--bg); padding: 1.2rem; }
+    .hero-stat__val { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+    .hero-stat__label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* Hero Visual Panel */
+    .hero-visual {
+      position: relative; border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid var(--border); background: var(--bg-card);
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+    }
+    .hero-visual img { width: 100%; height: auto; aspect-ratio: 4/3; object-fit: cover; }
+    .hero-visual__overlay {
+      position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(10,10,10,0.9));
+      display: flex; flex-direction: column; justify-content: flex-end; padding: 1.5rem;
+    }
+    .hero-visual__tag {
+      font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--blue); margin-bottom: 0.4rem;
+    }
+    .hero-visual__title { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; }
+
+    /* Scroll cue */
+    .scroll-cue {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); letter-spacing: 0.1em;
+      z-index: 2;
+    }
+    .scroll-cue .line { width: 1px; height: 40px; background: linear-gradient(var(--text-dim), transparent); animation: scrollLine 2s infinite; }
+    @keyframes scrollLine { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+    /* ============================================================
+       TL;DR BENTO
+       ============================================================ */
+    #tldr { padding: var(--space-xl) 0; border-bottom: 1px solid var(--border); }
+    .bento {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+      background: var(--border); border-radius: var(--radius-lg); overflow: hidden;
+    }
+    .bento-card {
+      background: var(--bg); padding: 2rem; transition: background 0.3s;
+    }
+    .bento-card:hover { background: var(--bg-elev); }
+    .bento-card__icon { width: 40px; height: 40px; margin-bottom: 1rem; opacity: 0.9; }
+    .bento-card__val {
+      font-family: var(--font-display); font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 700; color: var(--accent); line-height: 1; margin-bottom: 0.4rem;
+    }
+    .bento-card__label { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ============================================================
+       PLATFORM / PRODUCT
+       ============================================================ */
+    #platform { padding: var(--space-xl) 0; }
+    .platform-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap;
+    }
+    .platform-tab {
+      padding: 0.6rem 1.2rem; border-radius: 100px; font-size: 0.85rem; font-weight: 500;
+      color: var(--text-muted); border: 1px solid var(--border); transition: all 0.2s;
+    }
+    .platform-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .platform-panel { display: none; }
+    .platform-panel.active { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 3rem; align-items: start; }
+    .platform-panel__visual {
+      border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border);
+      background: var(--bg-card);
+    }
+    .platform-panel__visual img { width: 100%; aspect-ratio: 16/10; object-fit: cover; }
+    .platform-panel__body h3 { font-family: var(--font-display); font-size: 1.6rem; margin-bottom: 0.75rem; }
+    .platform-panel__body p { color: var(--text-muted); margin-bottom: 1.5rem; }
+    .feature-list { display: grid; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .feature-item { display: flex; gap: 0.75rem; align-items: flex-start; font-size: 0.9rem; }
+    .feature-item img { width: 20px; height: 20px; margin-top: 2px; flex-shrink: 0; }
+
+    /* Terminal */
+    .terminal {
+      background: #0D0D0D; border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; font-family: var(--font-mono); font-size: 0.78rem;
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.r { background: #FF5F57; }
+    .terminal-dot.y { background: #FEBC2E; }
+    .terminal-dot.g { background: #28C840; }
+    .terminal-body { padding: 1.2rem; line-height: 1.7; color: #A0A0A0; }
+    .terminal-body .cmd { color: var(--accent); }
+    .terminal-body .key { color: var(--blue); }
+
+    /* ============================================================
+       WEBGL SHOWCASE
+       ============================================================ */
+    #showcase { padding: var(--space-xl) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+    .showcase-stage {
+      position: relative; height: 480px; border-radius: var(--radius-lg); overflow: hidden;
+      border: 1px solid var(--border); background: radial-gradient(circle at 50% 50%, #111 0%, #0A0A0A 70%);
+    }
+    #showcase-canvas { position: absolute; inset: 0; }
+    .showcase-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 2rem; pointer-events: none;
+      background: linear-gradient(0deg, rgba(10,10,10,0.85), transparent 50%);
+    }
+    .showcase-overlay h3 { font-family: var(--font-display); font-size: 1.8rem; margin-bottom: 0.4rem; }
+    .showcase-overlay p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* ============================================================
+       TRUST LAYER
+       ============================================================ */
+    #trust { padding: var(--space-xl) 0; }
+    .marquee { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+    .marquee-track { display: flex; gap: 4rem; width: max-content; animation: marquee 28s linear infinite; }
+    .marquee:hover .marquee-track { animation-play-state: paused; }
+    @keyframes marquee { to { transform: translateX(-50%); } }
+    .marquee-logo { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; color: var(--text-dim); white-space: nowrap; letter-spacing: 0.08em; }
+    .testimonials { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+    .testimonial-card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 1.5rem; transition: border-color 0.3s, transform 0.3s var(--ease-out);
+    }
+    .testimonial-card:hover { border-color: rgba(200,255,0,0.3); transform: translateY(-2px); }
+    .testimonial-stars { display: flex; gap: 2px; margin-bottom: 1rem; }
+    .testimonial-stars img { width: 14px; height: 14px; }
+    .testimonial-quote { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.25rem; }
+    .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+    .testimonial-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+    .testimonial-name { font-size: 0.82rem; font-weight: 600; }
+    .testimonial-role { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* ============================================================
+       HELP & COMMUNITY — BLACK EDITION
+       ============================================================ */
+    #help-community {
+      background: var(--black); padding: var(--space-xl) 0; border-top: 1px solid #1A1A1A;
+    }
+    #help-community .section-label { color: #555; }
+    #help-community .section-label::before { background: #555; }
+    #help-community .section-title { color: #F5F5F5; }
+    #help-community .section-sub { color: #777; }
+    .help-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2.5rem; }
+    .help-card {
+      background: #0D0D0D; border: 1px solid #1F1F1F; border-radius: var(--radius-lg);
+      padding: 2rem; transition: border-color 0.3s, background 0.3s;
+    }
+    .help-card:hover { border-color: #333; background: #111; }
+    .help-card__icon { width: 44px; height: 44px; margin-bottom: 1.2rem; opacity: 0.7; }
+    .help-card h3 { font-family: var(--font-display); font-size: 1.15rem; margin-bottom: 0.5rem; color: #E0E0E0; }
+    .help-card p { font-size: 0.85rem; color: #666; line-height: 1.6; margin-bottom: 1rem; }
+    .help-card .link-arrow { font-size: 0.8rem; color: #888; display: inline-flex; align-items: center; gap: 0.3rem; transition: color 0.2s; }
+    .help-card:hover .link-arrow { color: var(--accent); }
+
+    /* ============================================================
+       CTA
+       ============================================================ */
+    #cta { padding: var(--space-xl) 0; text-align: center; position: relative; overflow: hidden; }
+    #cta::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-glow), transparent 70%);
+      pointer-events: none; filter: blur(80px);
+    }
+    #cta .section-title { position: relative; z-index: 1; }
+    #cta .section-sub { margin-inline: auto; margin-bottom: 2rem; position: relative; z-index: 1; }
+    #cta .hero-ctas { justify-content: center; position: relative; z-index: 1; }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    footer { border-top: 1px solid var(--border); padding: var(--space-lg) 0 var(--space-md); }
+    .footer-grid { display: grid; grid-template-columns: 1.5fr repeat(4, 1fr); gap: 2rem; margin-bottom: 3rem; }
+    .footer-brand { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--blue); letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+    .footer-desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.6; max-width: 28ch; }
+    .footer-col h4 { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.75rem; }
+    .footer-col a { display: block; font-size: 0.8rem; color: var(--text-muted); padding: 0.3rem 0; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--accent); }
+    .footer-bottom { display: flex; align-items: center; justify-content: space-between; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim); }
+    .footer-social { display: flex; gap: 0.75rem; }
+    .footer-social a { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; transition: border-color 0.2s, background 0.2s; }
+    .footer-social a:hover { border-color: var(--accent); background: rgba(200,255,0,0.05); }
+    .footer-social img { width: 14px; height: 14px; }
+
+    /* ============================================================
+       AI CHAT DOCK
+       ============================================================ */
+    #ai-dock {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 900;
+    }
+    .ai-toggle {
+      width: 52px; height: 52px; border-radius: 50%; background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 32px var(--accent-glow); transition: transform 0.2s var(--ease-out);
+    }
+    .ai-toggle:hover { transform: scale(1.06); }
+    .ai-toggle img { width: 24px; height: 24px; }
+    .ai-panel {
+      position: absolute; bottom: calc(100% + 12px); right: 0; width: 320px;
+      background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg);
+      padding: 1.2rem; box-shadow: 0 24px 48px rgba(0,0,0,0.6);
+      opacity: 0; visibility: hidden; transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s var(--ease-out), visibility 0.25s;
+    }
+    .ai-panel.open { opacity: 1; visibility: visible; transform: translateY(0); }
+    .ai-panel h4 { font-family: var(--font-display); font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .ai-panel p { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+    .ai-input {
+      width: 100%; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 0.82rem; font-family: var(--font-body);
+    }
+    .ai-input:focus { border-color: var(--accent); outline: none; }
+    .ai-placeholder {
+      font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-dim); margin-top: 0.6rem;
+      min-height: 1.2em;
+    }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 1024px) {
+      .hero-content { grid-template-columns: 1fr; gap: 2.5rem; }
+      .hero-visual { max-width: 500px; }
+      .bento { grid-template-columns: repeat(2, 1fr); }
+      .platform-panel.active { grid-template-columns: 1fr; }
+      .testimonials { grid-template-columns: 1fr; }
+      .help-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-links, .nav-actions .btn--ghost { display: none; }
+      #mobile-toggle { display: block; }
+      .hero-title { font-size: 2.4rem; }
+      .hero-stats { grid-template-columns: 1fr; }
+      .bento { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 1rem; text-align: center; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .hero-canvas, #showcase-canvas { display: none; }
+      .marquee-track { animation: none; }
+    }
+  </style>
+</head>
+<body class="loading">
+
+<!-- ============ PRELOADER ============ -->
+<div id="preloader" role="status" aria-label="Loading">
+  <div class="preloader-logo">KC<span>NX</span></div>
+  <div class="preloader-bar"><div class="preloader-bar__fill" id="preloader-fill"></div></div>
+  <div class="preloader-count" id="preloader-count">0%</div>
+</div>
+
+<!-- ============ NAVIGATION ============ -->
+<header id="nav">
+  <div class="nav-inner">
+    <a href="#hero" class="nav-brand" aria-label="KCNX Home">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="8" stroke="#2D7DFF" stroke-width="2"/>
+        <path d="M10 8v16M10 16l10-8M10 16l10 8" stroke="#2D7DFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      KCNX
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav-links">
+        <li class="nav-item">
+          <button aria-haspopup="true">Platform <img src="https://img.icons8.com/ios/50/000000/chevron-down.png" alt="" width="12" height="12" style="opacity:.5"></button>
+          <div class="mega-menu" role="menu">
+            <div class="mega-grid">
+              <a href="#platform" class="mega-card" role="menuitem">
+                <img class="mega-card__img" src="https://files.catbox.moe/oi5tom.png" alt="Inference Engine">
+                <div><div class="mega-card__title">Inference Engine</div><div class="mega-card__desc">Sub-40ms p99 latency at global edge.</div></div>
+              </a>
+              <a href="#platform" class="mega-card" role="menuitem">
+                <img class="mega-card__img" src="https://files.catbox.moe/q3s23d.webp" alt="Vector Store">
+                <div><div class="mega-card__title">Vector Store</div><div class="mega-card__desc">Billion-scale similarity search.</div></div>
+              </a>
+              <a href="#platform" class="mega-card" role="menuitem">
+                <img class="mega-card__img" src="https://files.catbox.moe/8qjzyr.png" alt="Observability">
+                <div><div class="mega-card__title">Observability</div><div class="mega-card__desc">Real-time traces, logs, and metrics.</div></div>
+              </a>
+              <a href="#platform" class="mega-card" role="menuitem">
+                <img class="mega-card__img" src="https://files.catbox.moe/auxmyo.jpg" alt="Edge Network">
+                <div><div class="mega-card__title">Edge Network</div><div class="mega-card__desc">42 regions, 200+ PoPs.</div></div>
+              </a>
+            </div>
+            <div class="mega-side">
+              <h4>Quick Links</h4>
+              <a href="#platform">Documentation</a>
+              <a href="#platform">API Reference</a>
+              <a href="#platform">System Status</a>
+              <a href="#help-community">Community Forum</a>
+              <a href="#help-community">Support Center</a>
+            </div>
+          </div>
+        </li>
+        <li><a href="#platform">Solutions</a></li>
+        <li><a href="#showcase">Developers</a></li>
+        <li><a href="#trust">Company</a></li>
+        <li><a href="#help-community">Community</a></li>
+      </ul>
+    </nav>
+    <div class="nav-actions">
+      <button class="btn btn--ghost" aria-label="Search" onclick="document.getElementById('ai-panel').classList.toggle('open')">
+        <img src="https://img.icons8.com/ios/50/000000/search.png" alt="" width="16" height="16" style="filter:invert(1);opacity:.7">
+        <span style="font-size:.75rem;color:var(--text-dim);font-family:var(--font-mono)">⌘K</span>
+      </button>
+      <a href="#cta" class="btn btn--primary">Get Started</a>
+    </div>
+    <button id="mobile-toggle" aria-label="Open menu" aria-expanded="false">
+      <img src="https://img.icons8.com/ios/50/000000/menu--v1.png" alt="" width="24" height="24" style="filter:invert(1)">
+    </button>
+  </div>
+</header>
+
+<!-- Mobile Drawer -->
+<div id="mobile-drawer" aria-hidden="true">
+  <button id="mobile-close" style="position:absolute;top:1.5rem;right:1.5rem;" aria-label="Close menu">
+    <img src="https://img.icons8.com/ios/50/000000/close-window.png" alt="" width="24" height="24" style="filter:invert(1)">
+  </button>
+  <a href="#platform">Platform</a>
+  <a href="#showcase">Developers</a>
+  <a href="#trust">Company</a>
+  <a href="#help-community">Community</a>
+  <a href="#cta" style="color:var(--accent)">Get Started →</a>
+</div>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<section id="hero">
+  <div class="hero-bg" role="img" aria-label="Abstract dark technology visualization"></div>
+  <div class="hero-grain" aria-hidden="true"></div>
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="container hero-content">
+    <div>
+      <div class="hero-badge"><span class="dot"></span> System operational · v4.2.0</div>
+      <h1 class="hero-title">
+        <span class="line"><span class="word">Real-time</span></span>
+        <span class="line"><span class="word">inference,</span></span>
+        <span class="line"><span class="word">planetary</span></span>
+        <span class="line"><span class="word">scale.</span></span>
+      </h1>
+      <p class="hero-sub">KCNX provides the infrastructure layer for production AI — sub-40ms p99 latency, 99.99% uptime, and a global edge network engineered for the next decade of compute.</p>
+      <div class="hero-ctas">
+        <a href="#cta" class="btn btn--primary">Start Building <img src="https://img.icons8.com/ios/50/000000/arrow-right.png" alt="" width="14" height="14" style="filter:invert(0)"></a>
+        <a href="#platform" class="btn btn--ghost">Read the Docs</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="hero-stat__val" data-count="99.99" data-suffix="%">0%</div><div class="hero-stat__label">Uptime SLA</div></div>
+        <div class="hero-stat"><div class="hero-stat__val" data-count="40" data-suffix="ms">0ms</div><div class="hero-stat__label">p99 Latency</div></div>
+        <div class="hero-stat"><div class="hero-stat__val" data-count="42" data-suffix="">0</div><div class="hero-stat__label">Global Regions</div></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://files.catbox.moe/oi5tom.png" alt="KCNX inference dashboard interface" loading="eager">
+      <div class="hero-visual__overlay">
+        <div class="hero-visual__tag">Live Console</div>
+        <div class="hero-visual__title">Inference Engine · 2.4M req/s</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-cue" aria-hidden="true"><span>Scroll</span><div class="line"></div></div>
+</section>
+
+<!-- ============ TL;DR BENTO ============ -->
+<section id="tldr">
+  <div class="container">
+    <span class="section-label">At a Glance</span>
+    <h2 class="section-title">The infrastructure layer, summarized.</h2>
+    <div class="bento">
+      <div class="bento-card">
+        <img class="bento-card__icon" src="https://img.icons8.com/ios/50/C8FF00/lightning-bolt--v1.png" alt="" loading="lazy">
+        <div class="bento-card__val" data-count="40" data-suffix="ms">0ms</div>
+        <div class="bento-card__label">p99 inference latency across all regions</div>
+      </div>
+      <div class="bento-card">
+        <img class="bento-card__icon" src="https://img.icons8.com/ios/50/C8FF00/globe--v1.png" alt="" loading="lazy">
+        <div class="bento-card__val" data-count="42" data-suffix="">0</div>
+        <div class="bento-card__label">Edge regions with automatic failover</div>
+      </div>
+      <div class="bento-card">
+        <img class="bento-card__icon" src="https://img.icons8.com/ios/50/C8FF00/shield.png" alt="" loading="lazy">
+        <div class="bento-card__val">SOC 2</div>
+        <div class="bento-card__label">Type II · ISO 27001 · GDPR ready</div>
+      </div>
+      <div class="bento-card">
+        <img class="bento-card__icon" src="https://img.icons8.com/ios/50/C8FF00/combo-chart--v1.png" alt="" loading="lazy">
+        <div class="bento-card__val" data-count="12" data-suffix="k+">0k+</div>
+        <div class="bento-card__label">Teams shipping production AI on KCNX</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PLATFORM ============ -->
+<section id="platform">
+  <div class="container">
+    <span class="section-label">Platform</span>
+    <h2 class="section-title">Three layers. One coherent system.</h2>
+    <p class="section-sub">Every component is designed to interoperate natively — no glue code, no hidden latency, no operational surprises.</p>
+    <div class="platform-tabs" role="tablist" aria-label="Platform components">
+      <button class="platform-tab active" role="tab" aria-selected="true" onclick="switchTab(0)">Inference Engine</button>
+      <button class="platform-tab" role="tab" aria-selected="false" onclick="switchTab(1)">Vector Store</button>
+      <button class="platform-tab" role="tab" aria-selected="false" onclick="switchTab(2)">Observability</button>
+    </div>
+
+    <!-- Panel 0 -->
+    <div class="platform-panel active" role="tabpanel">
+      <div class="platform-panel__visual">
+        <img src="https://files.catbox.moe/q3s23d.webp" alt="Inference engine visualization" loading="lazy">
+      </div>
+      <div class="platform-panel__body">
+        <h3>Inference Engine</h3>
+        <p>A purpose-built runtime for transformer-based models. Automatic batching, speculative decoding, and KV-cache reuse — all enabled by default, all observable in real time.</p>
+        <div class="feature-list">
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Dynamic batching with configurable timeout budgets</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Multi-model routing with weighted canary deployment</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> GPU/TPU/CPU heterogeneous scheduling</div>
+        </div>
+        <div class="terminal" aria-label="Terminal example">
+          <div class="terminal-bar"><span class="terminal-dot r"></span><span class="terminal-dot y"></span><span class="terminal-dot g"></span></div>
+          <div class="terminal-body">
+<span class="cmd">$ kcnx deploy --model llama-4-70b --region auto</span>
+<span class="key">→</span> Resolving optimal region... <span style="color:#28C840">us-east-1</span>
+<span class="key">→</span> Provisioning inference pool... done (2.1s)
+<span class="key">→</span> Warm-up complete. p99: <span style="color:var(--accent)">38ms</span>
+<span style="color:#666">●</span> Deployment live at https://api.kcnx.io/v4/infer
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 1 -->
+    <div class="platform-panel" role="tabpanel">
+      <div class="platform-panel__visual">
+        <img src="https://files.catbox.moe/8qjzyr.png" alt="Vector store visualization" loading="lazy">
+      </div>
+      <div class="platform-panel__body">
+        <h3>Vector Store</h3>
+        <p>Billion-scale similarity search with tunable recall, hybrid sparse-dense retrieval, and native multi-tenancy. Index updates propagate in under 200ms globally.</p>
+        <div class="feature-list">
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> HNSW + IVF-PQ index fusion for adaptive recall</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Metadata filtering with sub-millisecond overhead</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Bring-your-own embedding model support</div>
+        </div>
+        <div class="terminal" aria-label="Vector query example">
+          <div class="terminal-bar"><span class="terminal-dot r"></span><span class="terminal-dot y"></span><span class="terminal-dot g"></span></div>
+          <div class="terminal-body">
+<span class="cmd">$ kcnx vector query --collection products --top-k 5</span>
+<span class="key">→</span> Searching 2.4B vectors across 42 regions...
+<span class="key">→</span> Results in <span style="color:var(--accent)">12ms</span> · Recall@5: 0.998
+<span style="color:#666">●</span> Returned 5 matches (confidence ≥ 0.94)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 2 -->
+    <div class="platform-panel" role="tabpanel">
+      <div class="platform-panel__visual">
+        <img src="https://files.catbox.moe/auxmyo.jpg" alt="Observability dashboard" loading="lazy">
+      </div>
+      <div class="platform-panel__body">
+        <h3>Observability</h3>
+        <p>Traces, metrics, and logs unified in a single query surface. Every inference request is traceable from edge PoP to GPU kernel — with zero sampling on the first 10M requests/month.</p>
+        <div class="feature-list">
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Distributed tracing across every hop</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> Anomaly detection with configurable alert policies</div>
+          <div class="feature-item"><img src="https://img.icons8.com/ios/50/C8FF00/checkmark--v1.png" alt=""> OpenTelemetry-native export</div>
+        </div>
+        <div class="terminal" aria-label="Observability example">
+          <div class="terminal-bar"><span class="terminal-dot r"></span><span class="terminal-dot y"></span><span class="terminal-dot g"></span></div>
+          <div class="terminal-body">
+<span class="cmd">$ kcnx trace --request-id req_8f3a2c</span>
+<span class="key">→</span> Edge PoP: fra1 · 2.1ms
+<span class="key">→</span> Inference pool: us-east-1 · 31.4ms
+<span class="key">→</span> Vector retrieval: 4.2ms
+<span class="key">→</span> Total: <span style="color:var(--accent)">37.7ms</span> <span style="color:#28C840">✓ within SLO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WEBGL SHOWCASE ============ -->
+<section id="showcase">
+  <div class="container">
+    <span class="section-label">Architecture</span>
+    <h2 class="section-title">The network is the product.</h2>
+    <p class="section-sub">A procedural view of the KCNX edge topology — 42 regions, 200+ points of presence, orchestrated as a single logical inference surface.</p>
+    <div class="showcase-stage">
+      <canvas id="showcase-canvas" aria-hidden="true"></canvas>
+      <div class="showcase-overlay">
+        <h3>Edge Topology · Live View</h3>
+        <p>Real-time request routing across the global KCNX mesh.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRUST ============ -->
+<section id="trust">
+  <div class="container">
+    <span class="section-label">Ecosystem</span>
+    <h2 class="section-title">Trusted by teams that cannot afford downtime.</h2>
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span class="marquee-logo">NORTHWIND</span><span class="marquee-logo">VERTEX</span><span class="marquee-logo">HELIX</span><span class="marquee-logo">ORBIT</span><span class="marquee-logo">PULSE</span><span class="marquee-logo">ACME AI</span>
+        <span class="marquee-logo">NORTHWIND</span><span class="marquee-logo">VERTEX</span><span class="marquee-logo">HELIX</span><span class="marquee-logo">ORBIT</span><span class="marquee-logo">PULSE</span><span class="marquee-logo">ACME AI</span>
+      </div>
+    </div>
+    <div class="testimonials">
+      <div class="testimonial-card">
+        <div class="testimonial-stars">
+          <img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★">
+        </div>
+        <p class="testimonial-quote">"We migrated 40 models from a legacy serving stack in a weekend. Latency dropped by 62% and we have not paged once since."</p>
+        <div class="testimonial-author"><div class="testimonial-avatar">MR</div><div><div class="testimonial-name">Maya Reyes</div><div class="testimonial-role">VP Engineering, Northwind</div></div></div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">
+          <img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★">
+        </div>
+        <p class="testimonial-quote">"The observability layer alone is worth the price. We can trace a single token through the entire stack — that is not something we had before."</p>
+        <div class="testimonial-author"><div class="testimonial-avatar">JK</div><div><div class="testimonial-name">James Kwon</div><div class="testimonial-role">Staff SRE, Vertex</div></div></div>
+      </div>
+      <div class="testimonial-card">
+        <div class="testimonial-stars">
+          <img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★"><img src="https://img.icons8.com/ios-filled/50/C8FF00/star--v1.png" alt="★">
+        </div>
+        <p class="testimonial-quote">"KCNX is the first inference platform where the docs matched production reality. That is a low bar in principle and a rare achievement in practice."</p>
+        <div class="testimonial-author"><div class="testimonial-avatar">AL</div><div><div class="testimonial-name">Ana Lima</div><div class="testimonial-role">CTO, Helix Systems</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HELP & COMMUNITY — BLACK ============ -->
+<section id="help-community">
+  <div class="container">
+    <span class="section-label">Help &amp; Community</span>
+    <h2 class="section-title">Resources for every stage.</h2>
+    <p class="section-sub" style="color:#777">Documentation, community channels, and direct support — all in one place.</p>
+    <div class="help-grid">
+      <div class="help-card">
+        <img class="help-card__icon" src="https://img.icons8.com/ios/50/FFFFFF/book.png" alt="" loading="lazy">
+        <h3>Documentation</h3>
+        <p>API reference, SDK guides, architecture notes, and runnable examples for every supported language.</p>
+        <a href="#" class="link-arrow">Read the docs <img src="https://img.icons8.com/ios/50/FFFFFF/arrow-right.png" alt="" width="12" height="12" style="filter:invert(1);opacity:.5"></a>
+      </div>
+      <div class="help-card">
+        <img class="help-card__icon" src="https://img.icons8.com/ios/50/FFFFFF/group.png" alt="" loading="lazy">
+        <h3>Community Forum</h3>
+        <p>Ask questions, share patterns, and learn from 12,000+ engineers building on KCNX every day.</p>
+        <a href="#" class="link-arrow">Join the forum <img src="https://img.icons8.com/ios/50/FFFFFF/arrow-right.png" alt="" width="12" height="12" style="filter:invert(1);opacity:.5"></a>
+      </div>
+      <div class="help-card">
+        <img class="help-card__icon" src="https://img.icons8.com/ios/50/FFFFFF/headset.png" alt="" loading="lazy">
+        <h3>Support Center</h3>
+        <p>Priority support for enterprise customers. Average first response: under 15 minutes.</p>
+        <a href="#" class="link-arrow">Contact support <img src="https://img.icons8.com/ios/50/FFFFFF/arrow-right.png" alt="" width="12" height="12" style="filter:invert(1);opacity:.5"></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section id="cta">
+  <div class="container">
+    <h2 class="section-title">Ship inference that scales.</h2>
+    <p class="section-sub">Start free. Scale when you are ready. No sales call required.</p>
+    <div class="hero-ctas">
+      <a href="#" class="btn btn--primary">Create Account <img src="https://img.icons8.com/ios/50/000000/arrow-right.png" alt="" width="14" height="14"></a>
+      <a href="#help-community" class="btn btn--ghost">Talk to Engineering</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">KCNX</div>
+        <p class="footer-desc">Real-time inference infrastructure for teams that ship.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#platform">Inference Engine</a>
+        <a href="#platform">Vector Store</a>
+        <a href="#platform">Observability</a>
+        <a href="#platform">Edge Network</a>
+      </div>
+      <div class="footer-col">
+        <h4>Developers</h4>
+        <a href="#">Documentation</a>
+        <a href="#">API Reference</a>
+        <a href="#">SDKs</a>
+        <a href="#">System Status</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Careers</a>
+        <a href="#">Blog</a>
+        <a href="#">Press</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Security</a>
+        <a href="#">Compliance</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 KCNX. All rights reserved.</span>
+      <div class="footer-social">
+        <a href="#" aria-label="X"><img src="https://img.icons8.com/ios/50/FFFFFF/x-coordinate.png" alt="" style="filter:invert(1);opacity:.6"></a>
+        <a href="#" aria-label="GitHub"><img src="https://img.icons8.com/ios/50/FFFFFF/github--v1.png" alt="" style="filter:invert(1);opacity:.6"></a>
+        <a href="#" aria-label="LinkedIn"><img src="https://img.icons8.com/ios/50/FFFFFF/linkedin.png" alt="" style="filter:invert(1);opacity:.6"></a>
+        <a href="#" aria-label="Discord"><img src="https://img.icons8.com/ios/50/FFFFFF/discord-logo.png" alt="" style="filter:invert(1);opacity:.6"></a>
+      </div>
+      <span style="font-size:.65rem;color:#444">Icons by <a href="https://icons8.com" target="_blank" rel="noopener" style="color:#666;text-decoration:underline">Icons8</a></span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ AI DOCK ============ -->
+<div id="ai-dock">
+  <div class="ai-panel" id="ai-panel" role="dialog" aria-label="Ask KCNX">
+    <h4>Ask KCNX</h4>
+    <p>Get an instant answer about the platform, pricing, or architecture.</p>
+    <input class="ai-input" type="text" placeholder="Type a question…" aria-label="Your question">
+    <div class="ai-placeholder" id="ai-placeholder"></div>
+  </div>
+  <button class="ai-toggle" id="ai-toggle" aria-label="Open Ask KCNX">
+    <img src="https://img.icons8.com/ios-filled/50/000000/chat-message.png" alt="">
+  </button>
+</div>
+
+<script>
+/* ============================================================
+   PRELOADER
+   ============================================================ */
+(function(){
+  const pre = document.getElementById('preloader');
+  const fill = document.getElementById('preloader-fill');
+  const count = document.getElementById('preloader-count');
+  let p = 0;
+  const iv = setInterval(() => {
+    p += Math.random() * 18 + 6;
+    if (p >= 100) { p = 100; clearInterval(iv); setTimeout(() => { pre.classList.add('done'); document.body.classList.remove('loading'); }, 350); }
+    fill.style.width = p + '%';
+    count.textContent = Math.floor(p) + '%';
+  }, 120);
+})();
+
+/* ============================================================
+   NAV SCROLL STATE
+   ============================================================ */
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+}, { passive: true });
+
+/* ============================================================
+   MOBILE DRAWER
+   ============================================================ */
+const drawer = document.getElementById('mobile-drawer');
+const mToggle = document.getElementById('mobile-toggle');
+const mClose = document.getElementById('mobile-close');
+mToggle.addEventListener('click', () => { drawer.classList.add('open'); mToggle.setAttribute('aria-expanded','true'); });
+mClose.addEventListener('click', () => { drawer.classList.remove('open'); mToggle.setAttribute('aria-expanded','false'); });
+drawer.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { drawer.classList.remove('open'); mToggle.setAttribute('aria-expanded','false'); }));
+
+/* ============================================================
+   HERO KINETIC TEXT
+   ============================================================ */
+window.addEventListener('load', () => {
+  document.querySelectorAll('.hero-title .word').forEach((w, i) => {
+    setTimeout(() => w.classList.add('in'), 180 + i * 90);
+  });
+});
+
+/* ============================================================
+   COUNT-UP
+   ============================================================ */
+const counters = document.querySelectorAll('[data-count]');
+const countObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    const el = e.target;
+    const target = parseFloat(el.dataset.count);
+    const suffix = el.dataset.suffix || '';
+    const dec = target % 1 !== 0 ? 2 : 0;
+    let cur = 0;
+    const step = target / 60;
+    const tick = () => {
+      cur += step;
+      if (cur >= target) { cur = target; }
+      el.textContent = cur.toFixed(dec) + suffix;
+      if (cur < target) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    countObs.unobserve(el);
+  });
+}, { threshold: 0.4 });
+counters.forEach(c => countObs.observe(c));
+
+/* ============================================================
+   PLATFORM TABS
+   ============================================================ */
+function switchTab(i) {
+  document.querySelectorAll('.platform-tab').forEach((t, j) => {
+    t.classList.toggle('active', i === j);
+    t.setAttribute('aria-selected', i === j);
+  });
+  document.querySelectorAll('.platform-panel').forEach((p, j) => p.classList.toggle('active', i === j));
+}
+
+/* ============================================================
+   THREE.JS — HERO PARTICLES & SHOWCASE WIREFRAME
+   ============================================================ */
+let threeLoaded = false;
+function loadThree(cb) {
+  if (window.THREE) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js';
+  s.onload = () => { threeLoaded = true; cb(); };
+  document.head.appendChild(s);
+}
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function initHero() {
+  if (reduceMotion) return;
+  loadThree(() => {
+    const canvas = document.getElementById('hero-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.z = 8;
+    const geo = new THREE.BufferGeometry();
+    const N = window.innerWidth < 768 ? 600 : 1400;
+    const pos = new Float32Array(N * 3);
+    for (let i = 0; i < N * 3; i++) pos[i] = (Math.random() - 0.5) * 20;
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0x2D7DFF, size: 0.035, transparent: true, opacity: 0.6 });
+    const pts = new THREE.Points(geo, mat);
+    scene.add(pts);
+    function resize() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize); resize();
+    (function loop() {
+      requestAnimationFrame(loop);
+      pts.rotation.y += 0.0004;
+      pts.rotation.x += 0.0002;
+      renderer.render(scene, camera);
+    })();
+  });
+}
+
+function initShowcase() {
+  if (reduceMotion) return;
+  loadThree(() => {
+    const canvas = document.getElementById('showcase-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 0, 6);
+    const geo = new THREE.IcosahedronGeometry(2, 2);
+    const wire = new THREE.WireframeGeometry(geo);
+    const mat = new THREE.LineBasicMaterial({ color: 0xC8FF00, transparent: true, opacity: 0.35 });
+    const mesh = new THREE.LineSegments(wire, mat);
+    scene.add(mesh);
+    const innerGeo = new THREE.IcosahedronGeometry(1.1, 1);
+    const innerWire = new THREE.WireframeGeometry(innerGeo);
+    const innerMat = new THREE.LineBasicMaterial({ color: 0x2D7DFF, transparent: true, opacity: 0.5 });
+    const innerMesh = new THREE.LineSegments(innerWire, innerMat);
+    scene.add(innerMesh);
+    function resize() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resize); resize();
+    (function loop() {
+      requestAnimationFrame(loop);
+      mesh.rotation.x += 0.001; mesh.rotation.y += 0.0015;
+      innerMesh.rotation.x -= 0.002; innerMesh.rotation.y -= 0.001;
+      renderer.render(scene, camera);
+    })();
+  });
+}
+
+if (!reduceMotion) { initHero(); initShowcase(); }
+
+/* ============================================================
+   AI DOCK
+   ============================================================ */
+const aiToggle = document.getElementById('ai-toggle');
+const aiPanel = document.getElementById('ai-panel');
+const aiPlaceholder = document.getElementById('ai-placeholder');
+const prompts = [
+  'How does KCNX handle 40ms p99?',
+  'Can I self-host the inference engine?',
+  'What is the uptime SLA for enterprise?',
+  'Does the vector store support hybrid search?',
+  'How does billing work for idle capacity?'
+];
+let pi = 0;
+function rotatePlaceholder() {
+  aiPlaceholder.textContent = 'Try: “' + prompts[pi % prompts.length] + '”';
+  pi++;
+}
+rotatePlaceholder();
+setInterval(rotatePlaceholder, 3800);
+aiToggle.addEventListener('click', () => {
+  aiPanel.classList.toggle('open');
+  if (aiPanel.classList.contains('open')) aiPanel.querySelector('input').focus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') aiPanel.classList.remove('open');
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); aiPanel.classList.toggle('open'); }
+});
+
+/* ============================================================
+   SCROLL REVEAL (IntersectionObserver)
+   ============================================================ */
+const reveals = document.querySelectorAll('.section-title, .section-sub, .bento-card, .testimonial-card, .help-card');
+const revObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity = '1';
+      e.target.style.transform = 'translateY(0)';
+      revObs.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.15 });
+reveals.forEach(el => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(24px)';
+  el.style.transition = 'opacity .7s var(--ease-out), transform .7s var(--ease-out)';
+  revObs.observe(el);
+});
+</script>
+</body>
+</html>
